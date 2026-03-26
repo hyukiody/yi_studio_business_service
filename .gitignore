@@ -45,3 +45,14 @@ Thumbs.db
 .secrets
 *.key
 *.cert
+
+# Local Development Documentation
+# These files are kept locally for reference but not committed to remote
+.analysis/
+LANDING_PAGE_*.md
+REMEDIATION_*.md
+*_DESIGN_SYSTEM.md
+*_DESIGN_TEST_GUIDE.md
+*_IMPLEMENTATION_AUDIT.md
+# Reference snapshot (for development only - kept in .git, not published)
+.git/refs/heads/dev-snapshot/
