@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Contact form submissions (PII hashed)
+model ContactSubmission {
+  id              String    @id @default(cuid())
+  
+  // PII Hash: SHA-256(email + daily_salt)
+  emailHash       String
+  
+  // Sanitized text (HTML/SQL injection removed)
+  name            String    @db.VarChar(255)
+  message         String    @db.Text
+  
+  // Turnstile CAPTCHA validation
+  captchaValidated Boolean  @default(false)
+  
+  // Metadata
+  ipAddress       String?   @db.VarChar(45) // IPv4/IPv6
+  userAgent       String?   @db.Text
+  
+  // Timestamps
+  submittedAt     DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Indexes for queries
+  @@index([emailHash])
+  @@index([submittedAt])
+  @@map("contact_submissions")
+}
+
+// Telemetry events (anonymized interaction tracking)
+model TelemetryEvent {
+  id              String    @id @default(cuid())
+  
+  // Event metadata (segregated ISP)
+  eventName       String
+  eventType       String    // 'click' | 'submit' | 'input' | 'navigation'
+  componentId     String
+  sessionId       String    // Session hash (not tied to PII)
+  
+  // Metadata (no PII)
+  metadata        Json?     // { variant, platform, etc. }
+  
+  // Timestamps
+  timestamp       DateTime  @default(now())
+  
+  // Indexes
+  @@index([sessionId])
+  @@index([timestamp])
+  @@index([eventType])
+  @@map("telemetry_events")
+}
+
+// Admin: Rate limiting state (Redis backup)
+model RateLimitState {
+  id              String    @id // IP address or user ID
+  requestCount    Int       @default(0)
+  windowStart     DateTime  @default(now())
+  lastRequest     DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([lastRequest])
+  @@map("rate_limit_states")
+}

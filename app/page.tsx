@@ -1,21 +1,28 @@
-'use client';
-
 import { NavButton } from '@/components/ui/NavButton';
 import { NewsEntryCard } from '@/components/ui/NewsEntryCard';
+import { getPaginatedFeed } from '@/lib/utils/contentIngestion';
 
 /**
+ * LandingView — React Server Component (RSC)
+ *
  * Complexity Analysis:
- * - Time Complexity (Navigation): O(1) for rendering static nodes
- * - Time Complexity (Feed): O(N) for paginated dataset size
- * - Space Complexity (VDOM): O(N) for feed entries
+ * - Server-side Time Complexity: O(MlogM) for first request (ingestion + sort)
+ * - Client Time Complexity: O(1) — zero JavaScript payload
+ * - Client Rendering: O(N) where N = limit (10 default)
  *
  * Accessibility Constraint:
  * WCAG AA 4.5:1 contrast ratio enforcement
  * - Text on #E87A00: #FFE3C2 (background) → meets WCAG AA
  * - Text on #FFB76B: #E87A00 (contrast) → meets WCAG AA
+ *
+ * React Server Component Benefits:
+ * ✅ No JavaScript shipped for feed rendering
+ * ✅ Direct database/filesystem access
+ * ✅ Sensitive data processing on server only
+ * ✅ Automatic code splitting & tree-shaking
  */
 
-export default function LandingView() {
+export default async function LandingView() {
   /**
    * Default placeholder icon (SVG circle)
    * Time Complexity: O(1) render
@@ -63,35 +70,13 @@ export default function LandingView() {
   ];
 
   /**
-   * News feed dataset - implements O(N) paginated rendering
-   * Time Complexity: O(N) where N = number of entries
+   * Fetch initial feed data — Server-side execution
+   * Time Complexity: O(MlogM) for content ingestion + sort
+   * This is executed at build-time (static generation)
+   * or request-time (dynamic routes), never on client
    */
-  const newsFeedEntries = [
-    {
-      id: 1,
-      title: 'Architecture Overhaul',
-      subtitle: 'yIO Platform Refactor',
-      isoDateString: '2026-03-16T12:00:00Z',
-      content:
-        'Transitioning to strict S.O.L.I.D. principles within the Next.js execution context to eliminate technical debt and enforce immutable architectural boundaries.',
-    },
-    {
-      id: 2,
-      title: 'Dynamics of Solids',
-      subtitle: 'Applied Mathematics Integration',
-      isoDateString: '2026-03-18T09:30:00Z',
-      content:
-        'Derivation of O(N²) stress tensors translated into compute kernels for physical simulations. Integration of cryptographic hash functions with daily-rotating salt.',
-    },
-    {
-      id: 3,
-      title: 'Privacy-First Design',
-      subtitle: 'Zero-Trust Architecture Release',
-      isoDateString: '2026-03-20T14:15:00Z',
-      content:
-        'PII anonymization via SHA-256 hashing, environment variable isolation (NEXT_PUBLIC_* pattern), and client-side hostility assumption at serverless boundary.',
-    },
-  ];
+  const feedData = await getPaginatedFeed(3, 0); // Load first 3 entries
+  const newsFeedEntries = feedData.data;
 
   return (
     <main className="min-h-screen bg-[#FFE3C2] flex flex-col items-center px-4 py-[clamp(2rem,5vh,4rem)]">
