@@ -1,5 +1,24 @@
 #!/bin/bash
 # Husky pre-commit hook
-# Enforces ESLint and Prettier on staged files
+# Enforces code quality and security checks before commit
 
+echo "🔒 Checking for hardcoded secrets..."
+
+# Block common secret patterns
+if git diff --cached | grep -E '(password|secret|token|api.?key|DATABASE_URL|UPSTASH_REDIS)[\s]*=[\s]*[^"].*[^string]' > /dev/null 2>&1; then
+  echo "❌ BLOCKED: Suspected hardcoded secret detected"
+  echo "   Never commit real API keys, tokens, or credentials"
+  echo "   Use .env or GitHub Secrets instead"
+  exit 1
+fi
+
+# Block .env files (only .env.example allowed)
+if git diff --cached --name-only | grep -E '^\.env(\..+)?$' | grep -v '\.env\.example'; then
+  echo "❌ BLOCKED: Real environment file (.env*) cannot be committed"
+  exit 1
+fi
+
+echo "✓ Secret check passed"
+
+# Run linting and formatting
 npx lint-staged
