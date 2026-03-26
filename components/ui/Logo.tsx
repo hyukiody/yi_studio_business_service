@@ -1,7 +1,5 @@
 'use client';
 
-import Image from 'next/image';
-
 /**
  * Logo Component
  * 
@@ -9,7 +7,7 @@ import Image from 'next/image';
  * - SVG-based logo (scalable, responsive)
  * - Follows OCP: Open for extension via size/variant props
  * - Accessibility: alt text and semantic HTML
- * - Performance: Image optimization with Next.js
+ * - Performance: No external dependencies needed
  */
 
 interface ILogoProps {
