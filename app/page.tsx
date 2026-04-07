@@ -1,5 +1,5 @@
 import { NavButton } from '@/components/ui/NavButton';
-import { NewsEntryCard } from '@/components/ui/NewsEntryCard';
+import { NewsFeedClient } from '@/components/ui/NewsFeedClient';
 import { getPaginatedFeed } from '@/lib/utils/contentIngestion';
 
 /**
@@ -139,29 +139,24 @@ export default async function LandingView() {
       </h2>
 
       {/* ============================================
-          Feed Aggregator: O(N) Pagination Ready
+          Feed Aggregator: O(1) Virtualized Infinite Scroll
           ============================================
-          Time Complexity: O(N) for rendering N entries
-          Space Complexity: O(N) for VDOM allocation
+          Time Complexity: O(1) per scroll update via O(1) calculateO1RenderWindow
+          Space Complexity: O(K) where K = visibleNodesCount
       */}
       <section
-        className="flex flex-col w-full max-w-md gap-6 pb-[clamp(2rem,5vh,4rem)]"
+        className="w-full flex flex-col items-center"
         aria-label="News feed entries"
       >
-        {newsFeedEntries.map((entry) => (
-          <NewsEntryCard
-            key={entry.id}
-            title={entry.title}
-            subtitle={entry.subtitle}
-            isoDateString={entry.isoDateString}
-            content={entry.content}
-          />
-        ))}
+        <NewsFeedClient 
+          initialData={newsFeedEntries} 
+          initialTotal={feedData.pagination.total}
+        />
       </section>
 
-      {/* Pagination indicator (placeholder for Phase 5) */}
-      <footer className="text-center text-gray-600 text-sm">
-        Showing {newsFeedEntries.length} of ∞ entries
+      {/* Pagination indicator (Phase 5: Infinite Scroll Ready) */}
+      <footer className="mt-8 text-center text-gray-600 text-sm">
+        Showing {newsFeedEntries.length} of {feedData.pagination.total} entries
       </footer>
     </main>
   );

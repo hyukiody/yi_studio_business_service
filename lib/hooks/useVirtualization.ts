@@ -41,17 +41,15 @@ export interface UseVirtualizationResult {
   visibleCount: number;
   scrollTop: number;
   isBusy: boolean;
-  containerRef: React.RefObject<HTMLDivElement>;
-  contentRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function useVirtualization({
   itemHeight,
   totalItems,
-  viewport,
   bufferCount = 2,
   onScrollEnd,
-  scrollEndThreshold = 500,
 }: UseVirtualizationOptions): UseVirtualizationResult {
   // Track scroll position
   const [scrollTop, setScrollTop] = useState(0);

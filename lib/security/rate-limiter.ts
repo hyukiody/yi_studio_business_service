@@ -10,7 +10,7 @@
  * Location: lib/security/rate-limiter.ts
  */
 
-import { Ratelimit } from '@upstash/ratelimit';
+import { Ratelimit, type Duration } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
 // Initialize Redis client (uses Upstash Redis)
@@ -47,7 +47,7 @@ export const telemetryLimiter = new Ratelimit({
  */
 export function createRateLimiter(
   requests: number,
-  window: string,
+  window: Duration,
   prefix: string
 ) {
   return new Ratelimit({
@@ -58,4 +58,4 @@ export function createRateLimiter(
   });
 }
 
-export type { RatelimitResponse } from '@upstash/ratelimit';
+

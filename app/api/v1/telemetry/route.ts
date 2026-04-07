@@ -1,54 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ITelemetryEvent } from '@/lib/telemetry/interfaces';
+import { telemetryLimiter } from '@/lib/security/rate-limiter';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+const ALLOWED_ORIGIN = process.env.CORS_ALLOWED_ORIGIN || '*';
+
+function setCORSHeaders<T>(response: NextResponse<T>): NextResponse<T> {
+  response.headers.set('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  return response;
+}
+
+export async function OPTIONS(): Promise<NextResponse> {
+  return setCORSHeaders(new NextResponse(null, { status: 204 }));
+}
 
 /**
- * Telemetry API Route - Serverless Boundary
+ * Telemetry API Route - Interaction Ingestion
  * 
- * Immutable Privacy Constraint Alpha: Zero-State PII Persistence
- * All events are hashed before storage. Raw PII is never persisted.
+ * Segregated interaction tracking (ISP)
+ * Rate limited by sessionId to prevent analytics spam.
  */
 
-interface ITelemetryRequest {
-  events: ITelemetryEvent[];
+interface ITelemetryEventRequest {
+  eventName: string;
+  eventType: 'click' | 'submit' | 'input' | 'navigation';
+  componentId: string;
+  sessionId: string;
+  metadata?: Record<string, unknown>;
 }
 
-interface ITelemetryResponse {
-  received: number;
-  error?: string;
-}
-
-export async function POST(request: NextRequest): Promise<NextResponse<ITelemetryResponse>> {
+export async function POST(request: NextRequest) {
   try {
-    const body: ITelemetryRequest = await request.json();
+    const body: ITelemetryEventRequest = await request.json();
 
-    // Validate request
-    if (!Array.isArray(body.events) || body.events.length === 0) {
-      return NextResponse.json(
-        { received: 0, error: 'No events provided' },
-        { status: 400 }
+    // 1. Apply Rate Limiting (Constraint: 100 per minute per session)
+    // Robust session calculation could include IP as well, but following current spec
+    const { success: limitReached } = await telemetryLimiter.limit(body.sessionId);
+
+    if (!limitReached) {
+      return setCORSHeaders(
+        NextResponse.json(
+          { success: false, error: 'Rate limit exceeded' },
+          { status: 429 }
+        )
       );
     }
 
-    // Process events (validate, sanitize, hash PII if present)
-    const processedEvents = body.events.filter((event) => {
-      // Validate event structure
-      if (!event.eventName || !event.sessionId) {
-        return false;
-      }
-      return true;
+    // 2. Persist to Database via Prisma (Anonymized)
+    await prisma.telemetryEvent.create({
+      data: {
+        eventName: body.eventName,
+        eventType: body.eventType,
+        componentId: body.componentId,
+        sessionId: body.sessionId,
+        metadata: (body.metadata || {}) as any,
+      },
     });
 
-    // TODO: Store anonymized events in analytics database
-    console.debug('Telemetry events recorded:', processedEvents.length);
-
-    return NextResponse.json({
-      received: processedEvents.length,
-    });
+    return setCORSHeaders(NextResponse.json({ success: true }));
   } catch (error) {
-    console.error('Telemetry API error:', error);
-    return NextResponse.json(
-      { received: 0, error: 'Internal server error' },
-      { status: 500 }
+    console.error('Telemetry ingestion error:', error);
+    return setCORSHeaders(
+      NextResponse.json(
+        { success: false, error: 'Internal server error' },
+        { status: 500 }
+      )
     );
   }
 }

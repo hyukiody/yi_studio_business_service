@@ -1,34 +1,21 @@
-/**
- * GET /api/v1/feed
- *
- * Offset-based pagination endpoint for news feed
- *
- * Query Parameters:
- * - limit: Number of entries (default: 10, max: 100)
- * - offset: Number of entries to skip (default: 0)
- *
- * Response:
- * ```json
- * {
- *   "data": [...entries],
- *   "pagination": {
- *     "limit": 10,
- *     "offset": 0,
- *     "total": 50,
- *     "hasMore": true
- *   }
- * }
- * ```
- *
- * Time Complexity: O(MlogM) for first request (ingestion + sort)
- * Subsequent requests: O(M) if cache invalidated or O(1) with in-memory cache
- *
- * Space Complexity: O(limit) for response payload
- * The full ingestion O(M) is server-side only, never shipped to client
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaginatedFeed } from '@/lib/utils/contentIngestion';
+
+const ALLOWED_ORIGIN = process.env.CORS_ALLOWED_ORIGIN || '*';
+
+function setCORSHeaders(response: NextResponse): NextResponse {
+  response.headers.set('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  return response;
+}
+
+export async function OPTIONS(): Promise<NextResponse> {
+  return setCORSHeaders(new NextResponse(null, { status: 204 }));
+}
+
+export const dynamic = 'force-static';
+export const revalidate = 3600; // Revalidate every hour at build time
 
 export async function GET(req: NextRequest) {
   try {
@@ -39,20 +26,17 @@ export async function GET(req: NextRequest) {
 
     // Validate parameters
     if (limit < 1 || limit > 100) {
-      return NextResponse.json(
-        {
-          error: 'Invalid limit. Must be between 1 and 100.',
-        },
-        { status: 400 }
+      return setCORSHeaders(
+        NextResponse.json(
+          { error: 'Invalid limit. Must be between 1 and 100.' },
+          { status: 400 }
+        )
       );
     }
 
     if (offset < 0) {
-      return NextResponse.json(
-        {
-          error: 'Invalid offset. Must be >= 0.',
-        },
-        { status: 400 }
+      return setCORSHeaders(
+        NextResponse.json({ error: 'Invalid offset. Must be >= 0.' }, { status: 400 })
       );
     }
 
@@ -64,14 +48,12 @@ export async function GET(req: NextRequest) {
     response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
     response.headers.set('Content-Type', 'application/json');
 
-    return response;
+    return setCORSHeaders(response);
   } catch (error) {
     console.error('Feed API error:', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch feed',
-      },
-      { status: 500 }
+    return setCORSHeaders(
+      NextResponse.json({ error: 'Failed to fetch feed' }, { status: 500 })
     );
   }
 }
+
